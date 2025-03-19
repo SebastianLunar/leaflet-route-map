@@ -60,7 +60,7 @@ src/
 
 1. Clona el repositorio
    ```bash
-   git clone https://github.com/tu-usuario/api-categorias-client.git
+   git clone https://github.com/Riesgo-Juridico-App/frontend_pruebas_prevalidator.git
    cd api-categorias-client
    ```
 
