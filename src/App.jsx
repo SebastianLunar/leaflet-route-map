@@ -12,47 +12,57 @@ function App () {
   const [currentLocation, setCurrentLocation] = useState(null)
   const destination = { lat: 1.2222, lng: -77.28055 } // Ejemplo: San Francisco
 
-  useEffect(() => {
-    const obtenerUbicacion = () => {
-      if (!navigator.geolocation) {
-        console.error("❌ Geolocalización no soportada en este navegador.");
-        return;
-      }
+  const obtenerUbicacion = (intentos = 3) => {
+    if (!navigator.geolocation) {
+      console.error("❌ Geolocalización no soportada.");
+      obtenerUbicacionPorIP(); // Si no hay geolocalización, usa la IP
+      return;
+    }
   
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
+    navigator.geolocation.getCurrentPosition(
+      position => {
+        console.log(
+          `📍 Precisión obtenida: ${position.coords.accuracy} metros (Intento: ${4 - intentos})`
+        );
+  
+        if (position.coords.accuracy > 50 && intentos > 0) {
+          // Si la precisión es mala (>50m), intenta de nuevo hasta 3 veces
+          setTimeout(() => obtenerUbicacion(intentos - 1), 2000);
+        } else {
           setCurrentLocation({
             lat: position.coords.latitude,
             lng: position.coords.longitude,
           });
-          console.log("✅ Ubicación obtenida:", position.coords.latitude, position.coords.longitude);
-        },
-        (error) => {
-          console.error("❌ Error obteniendo la ubicación:", error.message);
-        },
-        {
-          enableHighAccuracy: true, // 🚀 Intenta usar GPS en lugar de IP
-          timeout: 10000, // ⏳ Espera máximo 10 segundos
-          maximumAge: 0, // 🔄 Siempre obtener una nueva ubicación
+          console.log("✅ Ubicación obtenida con precisión:", position.coords.accuracy, "metros");
         }
-      );
-    };
-
-    const obtenerUbicacionPorIP = async () => {
-      try {
-        const respuesta = await fetch("https://ipapi.co/json/");
-        const data = await respuesta.json();
-        setCurrentLocation({ lat: data.latitude, lng: data.longitude });
-        console.log("🌍 Ubicación por IP:", data.latitude, data.longitude);
-      } catch (error) {
-        console.error("❌ Error obteniendo ubicación por IP:", error);
+      },
+      error => {
+        console.error("❌ Error en geolocalización:", error.message);
+        obtenerUbicacionPorIP(); // Si falla, usa ubicación por IP
+      },
+      {
+        enableHighAccuracy: true, // Forzar GPS en dispositivos compatibles
+        timeout: 20000, // Aumentar el tiempo de espera a 20 segundos
+        maximumAge: 5000, // Permitir usar ubicación reciente si es precisa
       }
-    };
+    );
+  };
   
-    obtenerUbicacionPorIP();
+  const obtenerUbicacionPorIP = async () => {
+    try {
+      const res = await fetch("https://ipapi.co/json/");
+      const data = await res.json();
+      setCurrentLocation({ lat: data.latitude, lng: data.longitude });
+      console.log("🌍 Ubicación obtenida por IP:", data.latitude, data.longitude);
+    } catch (error) {
+      console.error("❌ Error obteniendo ubicación por IP:", error);
+    }
+  };
+  
+  useEffect(() => {
+    obtenerUbicacion();
   }, []);
   
-
   if (!currentLocation) return <p>Cargando ubicación...</p>
 
   return (
@@ -76,16 +86,17 @@ function App () {
             }}
           />
           <h1 className='text-2xl font-bold mb-4'>Ruta desde mi ubicación</h1>
-          <MyMap lat={1.2105179} lng={-77.2749852}>
+          <MyMap lat={currentLocation.lat} lng={currentLocation.lng}>
             <RoutingMachine
-              origin={{
-                lat: 1.2105179,
-                lng: -77.2749852
-              }}
+              origin={currentLocation}
               destination={destination}
             />
           </MyMap>
-          <div id="routing-instructions" className="mt-4 p-4 border rounded bg-gray-100"></div> {/* 🔥 Instrucciones debajo */}
+          <div
+            id='routing-instructions'
+            className='mt-4 p-4 border rounded bg-gray-100'
+          ></div>{' '}
+          {/* 🔥 Instrucciones debajo */}
         </div>
       </main>
     </div>
